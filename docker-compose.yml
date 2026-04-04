@@ -1,0 +1,110 @@
+# OpenMemoryLab — Docker Compose
+#
+# Quickstart
+# ──────────
+#   docker compose up oml-ui               # Launch Streamlit UI → http://localhost:8501
+#   docker compose up oml-api              # Launch REST API  → http://localhost:8000/docs
+#   docker compose run --rm oml oml ingest --demo       # One-off CLI: ingest demo data
+#   docker compose run --rm oml oml query "your question"
+#   docker compose --profile ollama up     # Also spin up a local Ollama instance
+#
+# Environment variables
+# ─────────────────────
+#   Copy .env.example → .env and fill in API keys before running.
+#   Docker Compose automatically reads .env from the project directory.
+
+services:
+
+  # ── CLI service ─────────────────────────────────────────────────────────────
+  # Use for one-off commands or interactive sessions.
+  # Example: docker compose run --rm oml oml query "What is TEEG?"
+  oml:
+    build: .
+    image: openmemorylab:1.0.0
+    stdin_open: true          # Keep STDIN open (needed for interactive CLI)
+    tty: true                 # Allocate a pseudo-TTY
+    volumes:
+      - ./data:/app/data
+      - ./artifacts:/app/artifacts
+      - ./reports:/app/reports
+      - ./oml.yaml:/app/oml.yaml:ro   # Mount config read-only
+    environment:
+      # Point to host-side Ollama by default (change if running Ollama in Docker)
+      OLLAMA_HOST: ${OLLAMA_HOST:-http://host.docker.internal:11434}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      OML_MODEL: ${OML_MODEL:-mock}
+    command: ["oml", "--help"]
+
+  # ── Streamlit web UI ─────────────────────────────────────────────────────────
+  # Exposes the full multi-tab experiment UI.
+  # Example: docker compose up oml-ui
+  #          Then open http://localhost:8501
+  oml-ui:
+    build: .
+    image: openmemorylab:1.0.0
+    volumes:
+      - ./data:/app/data
+      - ./artifacts:/app/artifacts
+      - ./reports:/app/reports
+      - ./oml.yaml:/app/oml.yaml:ro
+    environment:
+      OLLAMA_HOST: ${OLLAMA_HOST:-http://host.docker.internal:11434}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      OML_MODEL: ${OML_MODEL:-mock}
+      # Tell Streamlit to listen on all interfaces so it's reachable from host
+      STREAMLIT_SERVER_ADDRESS: "0.0.0.0"
+      STREAMLIT_SERVER_PORT: "8501"
+      STREAMLIT_BROWSER_GATHER_USAGE_STATS: "false"
+    ports:
+      - "8501:8501"
+    command: ["oml", "ui"]
+
+  # ── FastAPI REST API ──────────────────────────────────────────────────────────
+  # Exposes all endpoints with interactive Swagger docs.
+  # Example: docker compose up oml-api
+  #          Then open http://localhost:8000/docs
+  oml-api:
+    build: .
+    image: openmemorylab:1.0.0
+    volumes:
+      - ./data:/app/data
+      - ./artifacts:/app/artifacts
+      - ./reports:/app/reports
+      - ./teeg_store:/app/teeg_store
+      - ./oml.yaml:/app/oml.yaml:ro
+    environment:
+      OLLAMA_HOST: ${OLLAMA_HOST:-http://host.docker.internal:11434}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      OML_MODEL: ${OML_MODEL:-mock}
+    ports:
+      - "8000:8000"
+    command: ["oml", "api", "--host", "0.0.0.0", "--port", "8000"]
+
+  # ── Local Ollama (optional) ──────────────────────────────────────────────────
+  # Activate with: docker compose --profile ollama up
+  # When using this service, set OLLAMA_HOST=http://ollama:11434 in your .env.
+  #
+  # GPU support (NVIDIA):
+  #   Uncomment the `deploy` block below and ensure the NVIDIA Container Toolkit
+  #   is installed on the host: https://docs.nvidia.com/datacenter/cloud-native/
+  ollama:
+    image: ollama/ollama:latest
+    profiles: ["ollama"]
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+
+volumes:
+  ollama_data:
+    driver: local

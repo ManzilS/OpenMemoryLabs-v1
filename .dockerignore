@@ -1,0 +1,70 @@
+# =============================================================================
+# .dockerignore — OpenMemoryLab
+#
+# Keeps the Docker build context small and prevents secrets or generated
+# artifacts from being accidentally baked into the image.
+# =============================================================================
+
+# ── Version control ───────────────────────────────────────────────────────────
+.git/
+.gitignore
+
+# ── Virtual environments ──────────────────────────────────────────────────────
+.venv/
+venv/
+env/
+ENV/
+
+# ── Python cache ──────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+*.egg-info/
+build/
+dist/
+
+# ── Test artifacts ────────────────────────────────────────────────────────────
+.coverage
+htmlcov/
+
+# ── IDE / editor ──────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+.cursorignore
+.cursorindexingignore
+
+# ── OS ────────────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+*.log
+
+# ── Claude Code (AI assistant) ────────────────────────────────────────────────
+.claude/
+
+# ── Secrets (never bake into image) ──────────────────────────────────────────
+.env
+*.key
+*.pem
+
+# ── Generated runtime data (mounted as volumes at runtime) ───────────────────
+data/
+artifacts/
+logs/
+trash/
+notes/
+
+# ── Large binary artifacts ────────────────────────────────────────────────────
+*.pkl
+*.index
+*.sqlite
+*.db
+uv.lock
+
+# ── Reports (keep markdown, skip JSON/log dumps) ──────────────────────────────
+reports/*.json
+reports/*.log
+reports/combinations/

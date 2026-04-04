@@ -1,0 +1,89 @@
+# OpenMemoryLab Configuration File
+# --------------------------------
+# This file overrides the default settings used by the `oml` CLI.
+
+llm:
+  # The default model to use for interactive chat, one-off queries, 
+  # or evaluation tasks.
+  # Format options:
+  #   - lmstudio:<model_name> (e.g., lmstudio:qwen/qwen3-30b-a3b)  ← local LM Studio server
+  #   - ollama:<model_name>   (e.g., ollama:qwen3.5:cloud)
+  #   - openai:<model_name>   (e.g., openai:gpt-4o-mini)
+  #   - gemini:<model_name>   (e.g., gemini:gemini-1.5-flash)
+  # Tip: for Qwen3 thinking models set env LMSTUDIO_SYSTEM_PROMPT="/nothink"
+  #      to disable chain-of-thought and get ~10-30x lower latency.
+  default_model: "lmstudio:qwen/qwen3-30b-a3b"
+
+huggingface:
+  # Download once, then run fully offline from local cache.
+  # Requires models to already exist in cache.
+  offline: true
+
+  # Keep Transformers on the same offline policy.
+  # Defaults to `offline` if omitted.
+  transformers_offline: true
+
+  # Keep datasets (if used) on the same offline policy.
+  # Defaults to `offline` if omitted.
+  datasets_offline: true
+
+  # Disable Hub telemetry pings.
+  disable_telemetry: true
+
+  # Hide HF/Transformers model download/loading progress bars in CLI output.
+  disable_progress_bars: true
+
+  # Reduce Transformers logs (hides benign LOAD REPORT / UNEXPECTED notes).
+  # Options: debug, info, warning, error, critical
+  transformers_verbosity: "error"
+
+ingest:
+  # Default local storage backend for ingested documents and chunks.
+  # Options: "sqlite", "lancedb", "memory"
+  storage: "sqlite"
+  
+  # Method for summarizing documents during ingestion.
+  # Options: 
+  #   - "t5" : Fast, local HuggingFace T5-Small model (CPU optimized)
+  #   - "llm": The `default_model` defined above (powerful but slower)
+  summarizer: "t5"
+  
+  # Method for extracting Knowledge Graph relations from chunks.
+  # Options:
+  #   - "rebel": Fast, local Babelscape REBEL-Large model
+  #   - "llm"  : The `default_model` defined above
+  graph_model: "rebel"
+
+eval:
+  # Default limit for the number of test cases to run during evaluations
+  default_limit: 10
+
+teeg:
+  # Two-stage judge configuration
+  # Stage 1: cheap fast pre-screen (YES / SCOPE? / NO) — runs on ALL pairs.
+  # Set to a smaller/faster model to gate Stage 2 cheaply.
+  # Defaults to llm.default_model if not set.
+  # stage1_model: "lmstudio:qwen-1.5b"
+
+  # Epistemic skepticism scalar [0.0–1.0]
+  # Derived formulas use this as a multiplier on base_contradict / base_support.
+  # Low (0.2): notes accepted easily, corrections are hard.
+  # High (0.8): nothing trusted until heavily corroborated.
+  # Default (0.5): balanced — one full-strength contradiction archives a note.
+  skepticism: 0.5
+
+  # Confidence archive threshold: notes below this value are soft-archived.
+  archive_threshold: 0.15
+
+  # Warm store grace period (days): how long archived notes remain searchable
+  # for resurrection before moving to cold storage (keyword-only, no vector).
+  warm_store_days: 30
+
+  # Propagation factor: fraction of a confidence delta forwarded to direct
+  # graph neighbours during belief propagation. Kept low to prevent cascade
+  # amplification through dense subgraphs.
+  propagation_factor: 0.30
+
+  # Ingest candidate count: how many notes to compare per new note at write
+  # time.  Higher than query_k to reduce the vector-blindspot miss rate.
+  ingest_candidates: 10

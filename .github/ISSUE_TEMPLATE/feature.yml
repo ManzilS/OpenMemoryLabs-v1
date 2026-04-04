@@ -1,0 +1,42 @@
+name: Feature request
+description: Suggest an idea or improvement for OpenMemoryLab
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the idea! Please describe what you want and why it helps.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / motivation
+      description: What problem does this solve?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: Describe what you'd like to happen.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Any other approaches you considered?
+    validations:
+      required: false
+
+  - type: input
+    id: scope
+    attributes:
+      label: Scope
+      description: Small / Medium / Large (or time estimate)
+      placeholder: "Small"
+    validations:
+      required: false
