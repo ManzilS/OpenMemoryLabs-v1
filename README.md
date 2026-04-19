@@ -1,170 +1,108 @@
-# OpenMemoryLab
+# OpenMemoryLabs-v1
 
-Experimental retrieval and agent-memory lab for testing RAG strategies, context efficiency, and memory architecture ideas.
+**An experimental lab for evaluating RAG strategies and long-term agent-memory architectures.**
 
-![Python](https://img.shields.io/badge/python-3.12-blue)
-![License](https://img.shields.io/badge/license-Apache%202.0-green)
-![Type%20Hints](https://img.shields.io/badge/typing-mypy-blue)
-![Style](https://img.shields.io/badge/lint-ruff-orange)
-![Tests](https://img.shields.io/badge/tests-432%20passing-brightgreen)
+[![Python](https://img.shields.io/badge/python-3.10+-blue.svg)]()
+[![Status](https://img.shields.io/badge/status-research-purple.svg)]()
 
-OpenMemoryLab is built for one core purpose: make retrieval and memory design choices measurable.
+---
 
-Instead of shipping one fixed pipeline, it gives you modular components you can swap and benchmark:
-- Retrieval strategy (`bm25`, vector, hybrid, rerank, HyDE, graph).
-- Storage backend (`sqlite`, `lancedb`, `memory`).
-- LLM provider (`mock`, `ollama:*`, `openai:*`, `gemini:*`, `lmstudio:*`, `openrouter:*`).
-- Memory pipeline (`TEEG`, `PRISM`) for long-horizon context quality and efficiency.
-- Visual Technique Composer for drag-and-drop pipeline building and execution.
+## What it is
 
-## Architecture
+OpenMemoryLabs is a controlled environment for answering one question:
 
-```text
-Ingest -> Store -> Index -> Retrieve -> Context Budget -> Generate -> Evaluate
+> **Given a fixed agent task, which memory architecture actually improves reasoning quality — and at what cost?**
 
-oml/ingest      Parse + chunk + optional summarization/graph extraction
-oml/storage     Pluggable backends (sqlite/lancedb/memory)
-oml/retrieval   Hybrid retrieval, rerank, HyDE, graph augment
-oml/memory      TEEG + PRISM memory systems
-oml/api         FastAPI server and schemas
-oml/app         CLI chat + Streamlit UI + Technique Composer
-oml/eval        Benchmarks and task framework
-oml/techniques  Decomposed technique modules (distillers, judges, etc.)
+It benchmarks competing designs side-by-side on:
+- Retrieval accuracy (did we fetch the right context?)
+- Context efficiency (how many tokens did we burn?)
+- Latency (how slow is it in practice?)
+- Downstream answer quality
+
+## Why
+
+"Give your agent memory" has become a line in every LLM demo, but the field conflates a dozen different architectures under that label. Flat vector stores, hierarchical summarization, entity-graph memory, structured recall, sliding-window attention, RAG-over-history — all of these are called "memory." They don't cost the same. They don't work the same. And they don't behave the same way as sessions get long.
+
+This repo is how I pull them apart.
+
+## Architectures under evaluation
+
+| Architecture | One-line summary |
+|---|---|
+| Flat vector store | All messages embedded, top-k over cosine similarity |
+| Hierarchical summarization | Recursive summary ladder — raw → per-session → per-topic |
+| Structured recall | Extract facts into a typed store; query by relation |
+| Episodic + semantic split | Time-indexed events vs. distilled knowledge |
+| Sliding window + long-term index | Recent full context + RAG over older archive |
+
+## How it works
+
 ```
-
-## Main Modules
-
-### 1. RAG Core
-- Hybrid BM25 + dense vector retrieval.
-- Optional Cross-Encoder reranking.
-- HyDE support for hard semantic queries.
-- Token-aware context packing.
-
-### 2. TEEG Memory
-- Atomic notes with graph relations.
-- Write-time evolution/consistency checks.
-- Graph traversal retrieval for relation-first grounding.
-
-### 3. PRISM Efficiency Layer
-- SketchGate near-duplicate detection.
-- DeltaStore semantic patch storage.
-- CallBatcher N-to-1 LLM call coalescing.
-
-### 4. Technique Composer
-- Visual drag-and-drop pipeline builder in the Streamlit UI.
-- 11 composable block types across 5 categories (data, ingest, evolve, retrieve, generate).
-- Per-block settings via gear icon (custom prompts, temperature, thresholds).
-- Real-time execution with per-node status, I/O inspection, and error display.
-- Recipe quick-start and pipeline save/load.
-
-### 5. Evaluation Framework
-- `lost-in-middle`
-- `faithfulness`
-- `retrieval_precision`
-- `cost_latency`
-- `oml_vs_rag`
-- `ablations`
+                  ┌─────────────────────────┐
+                  │   task harness          │
+                  │   • fixed task set      │
+                  │   • fixed seed          │
+                  │   • deterministic runs  │
+                  └───────────┬─────────────┘
+                              │
+         ┌────────────────────┼────────────────────┐
+         ▼                    ▼                    ▼
+   ┌──────────┐        ┌──────────────┐      ┌──────────────┐
+   │  arch A  │        │   arch B     │      │   arch C     │
+   │ (flat)   │        │ (hierarchy)  │      │ (structured) │
+   └────┬─────┘        └──────┬───────┘      └──────┬───────┘
+        │                     │                     │
+        └─────────────────────┼─────────────────────┘
+                              ▼
+                  ┌─────────────────────────┐
+                  │   evaluator             │
+                  │   • retrieval P/R       │
+                  │   • token usage         │
+                  │   • answer quality      │
+                  │   • latency percentiles │
+                  └─────────────────────────┘
+```
 
 ## Quickstart
 
-### Requirements
-- Python 3.12.x
-- Optional: local Ollama or API keys for provider-backed models
-
-### Install
-
 ```bash
-py -3.12 -m venv .venv  # Windows
-.venv\Scripts\activate  # Windows
-pip install -e .
-pip install -e ".[dev]"
+git clone https://github.com/ManzilS/OpenMemoryLabs-v1
+cd OpenMemoryLabs-v1
+pip install -r requirements.txt
+
+# run a comparison
+python -m openmemorylabs run --task long_project_recall --archs flat,hierarchy,structured
+
+# view results
+python -m openmemorylabs report
 ```
 
-### Ingest Demo Corpus
+## Current findings (WIP)
 
-```bash
-oml ingest --demo
-```
+*Benchmarks in progress — this section updates as runs complete. Check back or watch the repo for updates.*
 
-### Query
+- **Flat vector store** is the cheapest baseline — low ingestion overhead, predictable latency, degrades gracefully on short sessions.
+- **Hierarchical summarization** shows stronger retrieval on long sessions (50+ turns); ingestion latency is noticeably higher at scale.
+- **Structured recall** wins on narrow factual Q&A but is brittle whenever a query falls outside the extraction schema.
+- The "best" architecture depends heavily on whether the task is recall vs. synthesis — there is no single winner.
 
-```bash
-oml query "What is TEEG?" --top-k 5 --alpha 0.5 --show-tokens
-```
+*(Quantitative breakdowns — turn thresholds, latency multipliers, retrieval P/R — will be published here as the benchmark dataset stabilizes.)*
 
-### Chat
+## What's implemented
 
-```bash
-oml chat --model mock --top-k 5 --budget 4000
-```
-
-### Run API
-
-```bash
-oml api --host 0.0.0.0 --port 8000
-# Swagger: http://localhost:8000/docs
-```
-
-### Run UI
-
-```bash
-oml ui
-```
-
-## TEEG / PRISM Examples
-
-```bash
-# TEEG
-oml teeg-ingest "Victor created the creature in 1797."
-oml teeg-query "Who created the creature?"
-
-# PRISM
-oml prism-ingest "Victor created the creature in 1797."
-oml prism-stats
-```
-
-## Evaluation
-
-```bash
-oml eval lost-in-middle --model mock
-oml eval faithfulness --model mock
-```
-
-Reports are generated under `reports/`.
-
-## Testing
-
-```bash
-python -m pytest -q
-```
-
-## Validation
-
-```bash
-python scripts/validate.py
-```
-
-## Repo Layout
-
-```text
-oml/                Core package
-scripts/            Experiment and utility scripts
-tests/              Test suite
-reports/            Experiment output
-docs/               Project docs (roadmap, changelog, architecture)
-```
-
-## Documentation
-
-- Docs index: [docs/README.md](docs/README.md)
-- Architecture: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
-- Roadmap: [docs/ROADMAP.md](docs/ROADMAP.md)
-- TODO: [docs/TODO.md](docs/TODO.md)
-- Changelog: [docs/CHANGELOG.md](docs/CHANGELOG.md)
-- Demo walkthrough: [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md)
-- Contribution guide: [CONTRIBUTING.md](CONTRIBUTING.md)
-- Scripts guide: [scripts/README.md](scripts/README.md)
+- [x] Task harness with deterministic, seeded runs
+- [x] Flat vector store baseline
+- [x] Hierarchical summarization architecture
+- [x] Structured recall architecture
+- [x] Evaluator with retrieval and latency metrics
+- [ ] Episodic + semantic split architecture
+- [ ] Sliding window + long-term index architecture
+- [ ] Published benchmark dataset
 
 ## License
 
-Apache-2.0. See [LICENSE](LICENSE).
+MIT
+
+## About
+
+Built by [Manzil "Nick" Sapkota](https://github.com/ManzilS) — open to AI/ML Engineer roles. [Email](mailto:manzilsapkota@gmail.com) · [LinkedIn](https://www.linkedin.com/in/manzilsapkota/).
